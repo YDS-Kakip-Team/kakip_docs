@@ -1,10 +1,10 @@
 # kakip EP-AC1686 対応手順
 
-## 前提条件
+## クロスコンパイル
+
+### 前提条件
 
 [Renesas社の手順](https://renesas-rz.github.io/rzv_ai_sdk/5.00/getting_started.html)を参考にRZ/V2H用AI SDKのコンテナイメージを作成してください。
-
-## クロスコンパイル
 
 ### 事前準備
 
@@ -109,6 +109,86 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 4. ドライバを配置したSDカードでkakipを起動する。
 
 5. kakipで以下のコマンドを実行する。
+    ```
+    sudo depmod
+    ```
+
+## セルフコンパイル
+
+### 事前準備
+
+1. 依存パッケージのインストールを行う。
+    ```
+    sudo apt update
+    sudo apt install -y flex bison bc libssl-dev libncurses-dev libncursesw-dev pkg-config
+    ```
+
+1. 作業ディレクトリを作成する。
+    ```
+    mkdir kakip_work
+    export WORK=$PWD/kakip_work
+    ```
+
+2. kakipのカーネルソースのリポジトリのクローンを行う。
+    ```
+    cd $WORK
+    git clone https://github.com/YDS-Kakip-Team/kakip_linux.git
+    ```
+
+3. カーネルコンフィグを設定する。
+    ```
+    cd $WORK/kakip_linux
+    cp ./arch/arm64/configs/kakip.config ./.config
+    make menuconfig
+    ```
+    以下のカーネルコンフィグを無効化（"n"に設定）してください。
+    - CONFIG_LOCALVERSION_AUTO
+    また、以下のカーネルコンフィグを有効化（"y"に設定）してください。
+    - CONFIG_CFG80211
+
+4. EP-AC1686ドライバ(rtl88x2bu)のソースコードを準備する。
+    ```
+    cd $WORK
+    git clone https://github.com/RinCat/RTL88x2BU-Linux-Driver.git
+    ```
+
+### ビルド手順
+
+1. カーネルモジュールのビルドに必要なファイルをビルドする。
+    ```
+    cd $WORK/kakip_linux
+    make -j4 modules_prepare
+    ```
+
+2. カーネルイメージをビルドする。
+    ```
+    make -j4 Image
+    ```
+    ビルド成果物は以下です。
+    - ./arch/arm64/boot/Image
+
+3. EP-AC1686ドライバ(rtl88x2bu)をビルドする。
+    ```
+    cd $WORK/RTL88x2BU-Linux-Driver
+    make -j4 KSRC=$WORK/kakip_linux
+    ```
+    ビルド成果物は以下です。
+    - ./88x2bu.ko
+
+### インストール手順
+
+1. ビルドしたドライバとカーネルイメージを配置する。
+    ```
+    sudo cp $WORK/88x2bu.ko /lib/modules/5.10.145-cip17-yocto-standard/extra/
+    sudo cp $WORK/kakip_linux/arch/arm64/boot/Image /boot/Image-5.10.145-cip17-yocto-standard
+    ```
+
+2. kakipを再起動する。
+    ```
+    sudo shutdown -r now
+    ```
+
+3. 以下のコマンドを実行する。
     ```
     sudo depmod
     ```
