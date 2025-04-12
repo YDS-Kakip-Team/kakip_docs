@@ -1,5 +1,10 @@
 # IMX219対応手順
 
+## H/Wの注意事項
+Renesas EVK（https://www.renesas.com/ja/products/microcontrollers-microprocessors/rz-mpus/rzv2h-evk-rzv2h-quad-core-vision-ai-mpu-evaluation-kit）に
+準じたMIPI-CSI2の22ピンI/Fのカメラの場合は、反転FPC（電極面が同一面のもの）を用いて接続してください。
+Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）はそのまま接続しても問題ありません。
+
 ## 注意事項
 
 1. UDL（ディスプレイリンク）で接続したディスプレイにログインした状態で行ってください。
