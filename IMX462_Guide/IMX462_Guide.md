@@ -8,6 +8,12 @@
 
 [Renesas社の手順](https://renesas-rz.github.io/rzv_ai_sdk/5.00/getting_started.html)を参考にRZ/V2H用AI SDKのコンテナイメージを作成してください。
 
+#### H/Wの注意事項
+e-CON製カメラ（https://www.e-consystems.com/jp/renesas/sony-starvis-imx462-ultra-low-light-camera-for-renesas-rz-v2h-jp.asp）等の
+Renesas EVK（https://www.renesas.com/ja/products/microcontrollers-microprocessors/rz-mpus/rzv2h-evk-rzv2h-quad-core-vision-ai-mpu-evaluation-kit）に
+準じたMIPI-CSI2の22ピンI/Fの場合は、反転FPC（電極面が同一面のもの）を用いて接続してください。
+Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）はそのまま接続しても問題ありません。
+
 #### 事前準備
 1. kakipのカーネルソースのリポジトリのクローンを行う。
     ```
