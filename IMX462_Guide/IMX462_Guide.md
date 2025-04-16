@@ -12,6 +12,7 @@
 e-CON製カメラ（https://www.e-consystems.com/jp/renesas/sony-starvis-imx462-ultra-low-light-camera-for-renesas-rz-v2h-jp.asp）等の
 Renesas EVK（https://www.renesas.com/ja/products/microcontrollers-microprocessors/rz-mpus/rzv2h-evk-rzv2h-quad-core-vision-ai-mpu-evaluation-kit）に
 準じたMIPI-CSI2の22ピンI/Fの場合は、反転FPC（電極面が同一面のもの）を用いて接続してください。
+また、上記e-con製カメラモジュールの場合は消費電力の関係で2台までとしてください。
 Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）はそのまま接続しても問題ありません。
 
 #### 事前準備
