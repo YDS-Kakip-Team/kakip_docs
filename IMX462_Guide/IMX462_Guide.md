@@ -1,4 +1,11 @@
-# IMX462対応手順書
+# IMX462利用手順書
+
+## H/Wの注意事項
+e-CON製カメラ（https://www.e-consystems.com/jp/renesas/sony-starvis-imx462-ultra-low-light-camera-for-renesas-rz-v2h-jp.asp）等の
+Renesas EVK（https://www.renesas.com/ja/products/microcontrollers-microprocessors/rz-mpus/rzv2h-evk-rzv2h-quad-core-vision-ai-mpu-evaluation-kit）に
+準じたMIPI-CSI2の22ピンI/Fの場合は、反転FPC（電極面が同一面のもの）を用いて接続してください。
+また、上記e-con製カメラモジュールの場合は消費電力の関係で2台までとしてください。
+Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）はそのまま接続しても問題ありません。
 
 ## ビルド手順
 
@@ -7,13 +14,6 @@
 #### 前提条件
 
 [Renesas社の手順](https://renesas-rz.github.io/rzv_ai_sdk/5.00/getting_started.html)を参考にRZ/V2H用AI SDKのコンテナイメージを作成してください。
-
-#### H/Wの注意事項
-e-CON製カメラ（https://www.e-consystems.com/jp/renesas/sony-starvis-imx462-ultra-low-light-camera-for-renesas-rz-v2h-jp.asp）等の
-Renesas EVK（https://www.renesas.com/ja/products/microcontrollers-microprocessors/rz-mpus/rzv2h-evk-rzv2h-quad-core-vision-ai-mpu-evaluation-kit）に
-準じたMIPI-CSI2の22ピンI/Fの場合は、反転FPC（電極面が同一面のもの）を用いて接続してください。
-また、上記e-con製カメラモジュールの場合は消費電力の関係で2台までとしてください。
-Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）はそのまま接続しても問題ありません。
 
 #### 事前準備
 1. kakipのカーネルソースのリポジトリのクローンを行う。
@@ -60,10 +60,10 @@ Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）は�
 
 3. デバイスツリーをビルドする。
     ```
-    make -j4 renesas/kakip-es1-imx462.dtb
+    make -j4 renesas/overlays/kakip-es1-imx462-overlay.dtb
     ```
     ビルド成果物は以下です。
-    - ./arch/arm64/boot/dts/renesas/kakip-es1-imx462.dtb
+    - ./arch/arm64/boot/dts/renesas/overlays/kakip-es1-imx462-overlay.dtb
 
 4. ビルド後はexitでコンテナから抜ける。
     ```
@@ -71,6 +71,8 @@ Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）は�
     ```
 
 #### カーネルの更新手順
+
+#### カーネルイメージとdtbファイルの配置
 1. SDカードをPCにマウントする。
 
     /mntに手動でマウントする場合の手順です。  
@@ -81,27 +83,41 @@ Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）は�
     sudo mount /dev/sd<X>2 /mnt
     ```
 
-2. ビルドしたカーネルイメージとdtbファイルを更新する。
+2. ビルドしたカーネルイメージを更新する。
 
     ```
-    sudo cp ./arch/arm64/boot/Image /mnt/boot/Image-5.10.145-cip17-yocto-standard
-    sudo cp ./arch/arm64/boot/dts/renesas/kakip-es1-imx462.dtb /mnt/boot/kakip-es1-imx462.dtb
+    sudo cp ./arch/arm64/boot/Image /mnt/boot/Image-5.10.145-cip17-yocto-standard    
     ```
 
-4. カーネルイメージとdtbファイルを更新したSDカードでkakipを起動する。
-
-5. kakipで以下のコマンドを実行する。
+3. ビルドしたdtbファイルをdtboファイルとして配置する。
     ```
-    sudo ln -sfn kakip-es1-imx462.dtb /boot/kakip-es1.dtb
+    sudo cp ./arch/arm64/boot/dts/renesas/overlays/kakip-es1-imx462-overlay.dtb /mnt/boot/kakip-es1-imx462.dtbo
     ```
 
-6. kakipを再起動する。
+#### kakipでのdtboファイルの適用
+1. カーネルイメージとdtbファイルを更新したSDカードでkakipを起動する。
+
+2. kakipで以下のコマンドを実行する。
+    ```
+    sudo fw_setenv boot_fdt_overlay yes
+    sudo fw_setenv fdt_overlay_files kakip-es1-imx462
+    ```
+
+3. kakipを再起動する。
     ```
     sudo shutdown -r now
     ```
 
 ### セルフコンパイル
 #### 事前準備
+1. 依存パッケージのインストールを行う。
+    ```
+    sudo apt update
+    sudo apt install -y git flex bison bc build-essential libncurses-dev pkg-config gcc-9
+    ```
+
+    ※ RZ/V2H用AI SDKのコンテナイメージに合わせて`gcc-9`を使用します。
+
 1. kakipのカーネルソースのリポジトリのクローンを行う。
     ```
     git clone https://github.com/YDS-Kakip-Team/kakip_linux.git
@@ -123,28 +139,35 @@ Raspberry Piに準じたカメラのFPC（電極面が反転面のもの）は�
 
 2. カーネルイメージをビルドする。
     ```
-    make -j4 Image
+    make -j4 Image CC=gcc-9
     ```
     ビルド成果物は以下です。
     - ./arch/arm64/boot/Image
 
 3. デバイスツリーをビルドする。
     ```
-    make -j4 renesas/kakip-es1-imx462.dtb
+    make -j4 renesas/overlays/kakip-es1-imx462-overlay.dtb CC=gcc-9
     ```
     ビルド成果物は以下です。
-    - ./arch/arm64/boot/dts/renesas/kakip-es1-imx462.dtb
+    - ./arch/arm64/boot/dts/renesas/overlays/kakip-es1-imx462-overlay.dtb
 
 #### カーネルの更新手順
-1. ビルドしたカーネルイメージとdtbファイルを更新する。
+1. ビルドしたカーネルイメージを更新する。
     ```
     sudo cp ./arch/arm64/boot/Image /boot/Image-5.10.145-cip17-yocto-standard
-    sudo cp ./arch/arm64/boot/dts/renesas/kakip-es1-imx462.dtb /boot/kakip-es1-imx462.dtb
     ```
 
-2. 以下のコマンドを実行する。
+2. ビルドしたdtbファイルをdtboファイルとして配置する。
     ```
-    sudo ln -sfn kakip-es1-imx462.dtb /boot/kakip-es1.dtb
+    sudo cp ./arch/arm64/boot/dts/renesas/overlays/kakip-es1-imx462-overlay.dtb /boot/kakip-es1-imx462.dtbo
+    ```
+
+3. カーネルイメージとdtbファイルを更新したSDカードでkakipを起動する。
+
+4. 以下のコマンドを実行する。
+    ```
+    sudo fw_setenv boot_fdt_overlay yes
+    sudo fw_setenv fdt_overlay_files kakip-es1-imx462
     ```
 
 3. kakipを再起動する。
