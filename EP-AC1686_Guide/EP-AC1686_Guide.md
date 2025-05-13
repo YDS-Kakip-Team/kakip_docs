@@ -83,6 +83,7 @@
 
 ### インストール手順
 
+#### カーネルイメージとドライバの配置
 Kakipのイメージが書き込まれているSDカードにドライバを配置します。
 1. SDカードをPCにマウントする。
 
@@ -106,9 +107,10 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
     sudo umount /mnt
     ```
 
-4. ドライバを配置したSDカードでkakipを起動する。
+#### kakipでのカーネルモジュール依存関係の更新
+1. ドライバを配置したSDカードでkakipを起動する。
 
-5. kakipで以下のコマンドを実行する。
+2. kakipで以下のコマンドを実行する。
     ```
     sudo depmod
     ```
@@ -120,8 +122,10 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 1. 依存パッケージのインストールを行う。
     ```
     sudo apt update
-    sudo apt install -y flex bison bc libssl-dev libncurses-dev libncursesw-dev pkg-config
+    sudo apt install -y git flex bison bc libssl-dev libncurses-dev pkg-config build-essential gcc-9
     ```
+
+    ※ RZ/V2H用AI SDKのコンテナイメージに合わせて`gcc-9`を使用します。
 
 1. 作業ディレクトリを作成する。
     ```
@@ -157,12 +161,12 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 1. カーネルモジュールのビルドに必要なファイルをビルドする。
     ```
     cd $WORK/kakip_linux
-    make -j4 modules_prepare
+    make LOCALVERSION="" -j4 modules_prepare CC=gcc-9
     ```
 
 2. カーネルイメージをビルドする。
     ```
-    make -j4 Image
+    make LOCALVERSION="" -j4 Image CC=gcc-9
     ```
     ビルド成果物は以下です。
     - ./arch/arm64/boot/Image
@@ -170,7 +174,7 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 3. EP-AC1686ドライバ(rtl88x2bu)をビルドする。
     ```
     cd $WORK/RTL88x2BU-Linux-Driver
-    make -j4 KSRC=$WORK/kakip_linux
+    make -j4 KSRC=$WORK/kakip_linux CC=gcc-9
     ```
     ビルド成果物は以下です。
     - ./88x2bu.ko
@@ -179,7 +183,7 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 
 1. ビルドしたドライバとカーネルイメージを配置する。
     ```
-    sudo cp $WORK/88x2bu.ko /lib/modules/5.10.145-cip17-yocto-standard/extra/
+    sudo cp $WORK/RTL88x2BU-Linux-Driver/88x2bu.ko /lib/modules/5.10.145-cip17-yocto-standard/extra/
     sudo cp $WORK/kakip_linux/arch/arm64/boot/Image /boot/Image-5.10.145-cip17-yocto-standard
     ```
 
