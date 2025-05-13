@@ -81,6 +81,8 @@
     ```
 
 ### インストール手順
+
+#### カーネルイメージとドライバの配置
 Kakipのイメージが書き込まれているSDカードにドライバを配置します。
 1. SDカードをPCにマウントする。
 
@@ -104,9 +106,11 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
     sudo umount /mnt
     ```
 
-4. ドライバを配置したSDカードでkakipを起動する。
+#### kakipでのカーネルモジュール依存関係の更新
 
-5. kakipで以下のコマンドを実行する。
+1. ドライバを配置したSDカードでkakipを起動する。
+
+2. kakipで以下のコマンドを実行する。
     ```
     sudo depmod
     ```
@@ -116,22 +120,24 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 1. 依存パッケージのインストールを行う。
     ```
     sudo apt update
-    sudo apt install -y flex bison bc libssl-dev libncurses-dev libncursesw-dev pkg-config
+    sudo apt install -y git flex bison bc libssl-dev libncurses-dev pkg-config build-essential gcc-9
     ```
 
-1. 作業ディレクトリを作成する。
+    ※ RZ/V2H用AI SDKのコンテナイメージに合わせて`gcc-9`を使用します。
+
+2. 作業ディレクトリを作成する。
     ```
     mkdir kakip_work
     export WORK=$PWD/kakip_work
     ```
 
-2. kakipのカーネルソースのリポジトリのクローンを行う。
+3. kakipのカーネルソースのリポジトリのクローンを行う。
     ```
     cd $WORK
     git clone https://github.com/YDS-Kakip-Team/kakip_linux.git
     ```
 
-3. カーネルコンフィグを設定する。
+4. カーネルコンフィグを設定する。
     ```
     cd $WORK/kakip_linux
     cp ./arch/arm64/configs/kakip.config ./.config
@@ -143,7 +149,7 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
     また、以下のカーネルコンフィグを有効化（"y"に設定）してください。
     - CONFIG_CFG80211
 
-4. Archer T2U Nanoドライバ(rtl88XXau)のリポジトリのクローンを行う。
+5. Archer T2U Nanoドライバ(rtl88XXau)のリポジトリのクローンを行う。
     ```
     git clone https://github.com/aircrack-ng/rtl8812au.git
     cd ./rtl8812au
@@ -154,12 +160,12 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 1. カーネルモジュールのビルドに必要なファイルをビルドする。
     ```
     cd $WORK/kakip_linux
-    make LOCALVERSION="" -j4 modules_prepare
+    make LOCALVERSION="" -j4 modules_prepare CC=gcc-9
     ```
 
 2. カーネルイメージをビルドする。
     ```
-    make -j4 Image
+    make LOCALVERSION="" -j4 Image CC=gcc-9
     ```
     ビルド成果物は以下です。
     - ./arch/arm64/boot/Image
@@ -167,7 +173,7 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 4. Archer T2U Nanoドライバ(rtl88XXau)をビルドする。
     ```
     cd $WORK/rtl8812au
-    make -j4 KSRC=$WORK/kakip_linux
+    make -j4 KSRC=$WORK/kakip_linux CC=gcc-9
     ```
     ビルド成果物は以下です。
     - ./88XXau.ko
