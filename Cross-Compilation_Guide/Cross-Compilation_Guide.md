@@ -263,3 +263,98 @@ For large projects, it's often recommended to use a "lazy" approach—such as se
 | **Native Compilation** | Simple, no dependency issues | Slow, limited by device resources | Quick tests, tiny projects |
 | **Cross-Compile (Makefile)** | Fast, uses host power | Manual setup, less scalable | Small to medium projects |
 | **Cross-Compile (CMake)** | Fast, professional, very scalable | Slightly more initial setup | Medium to large projects |
+
+
+## 9. Example
+
+Example 1. [kakip_ai_apps/R01_object_detection](https://github.com/YDS-Kakip-Team/kakip_ai_apps/tree/main/R01_object_detection)
+
+Please follow this patch to modify the source code for the cross-compile environment
+
+```bash
+diff --git a/R01_object_detection/src/CMakeLists.txt b/R01_object_detection/src/CMakeLists.txt
+index fdf4306..63b260f 100755
+--- a/R01_object_detection/src/CMakeLists.txt
++++ b/R01_object_detection/src/CMakeLists.txt
+@@ -8,11 +8,14 @@ include_directories(${TVM_ROOT}/include)
+ include_directories(${TVM_ROOT}/3rdparty/dlpack/include)
+ include_directories(${TVM_ROOT}/3rdparty/dmlc-core/include)
+ include_directories(${TVM_ROOT}/3rdparty/compiler-rt)
++include_directories(SYSTEM ${CMAKE_SYSROOT}/usr/include/renesas/opencv4)
++include_directories(SYSTEM ${CMAKE_SYSROOT}/usr/include/renesas/)
+
+-set(OpenCVA_INCLUDE_DIRS /usr/include/renesas/opencv4)
++
++set(OpenCVA_INCLUDE_DIRS ${CMAKE_SYSROOT}/usr/include/renesas/opencv4)
+ set(OpenCVA_LIBS opencv_imgcodecs opencv_imgproc opencv_core opencv_highgui opencv_videoio)
+
+-set(TVM_RUNTIME_LIB /usr/lib/aarch64-linux-gnu/renesas/libtvm_runtime.so)
++set(TVM_RUNTIME_LIB ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/renesas/libtvm_runtime.so)
+ set(EXE_NAME object_detection)
+
+ file(GLOB SOURCE *.cpp *.h)
+@@ -20,14 +23,14 @@ add_executable (${EXE_NAME}
+ ${SOURCE}
+ )
+
+-target_link_directories(${EXE_NAME} PUBLIC /usr/lib/aarch64-linux-gnu/renesas)
++target_link_directories(${EXE_NAME} PUBLIC ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/renesas)
+
+ target_link_libraries(${EXE_NAME} pthread)
+ target_link_libraries(${EXE_NAME} jpeg)
+ target_link_libraries(${EXE_NAME} mmngr mmngrbuf)
+ target_link_libraries(${EXE_NAME} ${OpenCVA_LIBS})
+
+-target_include_directories(${EXE_NAME} PUBLIC /usr/include/renesas ${OpenCVA_INCLUDE_DIRS})
++target_include_directories(${EXE_NAME} PUBLIC ${CMAKE_SYSROOT}/usr/include/renesas ${OpenCVA_INCLUDE_DIRS})
+ target_link_libraries(${EXE_NAME} ${TVM_RUNTIME_LIB})
+
+ target_compile_definitions(${EXE_NAME} PRIVATE V2H)
+```
+
+```bash
+vim R01_object_detection/src/aarch64.toolchain.cmake
+# Set the target system
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR aarch64)
+
+# Specify the cross-compilers
+set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+
+# Specify the sysroot path (example)
+set(CMAKE_SYSROOT /home/wig/workspace/kakip/mnt)
+
+# Add the --sysroot flag to the compiler and linker flags.
+# This tells the compiler to look for headers and libraries in the specified sysroot.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=${CMAKE_SYSROOT}" CACHE STRING "C compiler flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --sysroot=${CMAKE_SYSROOT}" CACHE STRING "CXX compiler flags")
+# For the linker as well
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --sysroot=${CMAKE_SYSROOT}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --sysroot=${CMAKE_SYSROOT}")
+set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} --sysroot=${CMAKE_SYSROOT}")
+
+# Configure how CMake finds things. This is redundant if --sysroot works, but good practice.
+set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+```
+
+Note that because R01_object_detection case need a **sysroot** rootfs, you can just mount the Kakip Ubuntu's uSD card on the host PC, then set the CMAKE_SYSROOT property to the cmake environment, then it will works.
+
+Compile commands:
+
+```bash
+$ cd R01_object_detection/src/
+$ mkdir build
+$ cd build
+$ cmake .. -DCMAKE_TOOLCHAIN_FILE=aarch64.toolchain.cmake
+$ make
+
+# Then copy the execute file to the Kakip board
+$ scp -rv object_detection ubuntu@<target-ip-address>:~/
+```
+
+Please note that CMake projects often vary depending on the library dependencies. This is just a starting point to help everyone understand the process.
