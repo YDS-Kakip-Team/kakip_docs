@@ -83,26 +83,43 @@
 ### インストール手順
 
 #### カーネルイメージとドライバの配置
-Kakipのイメージが書き込まれているSDカードにドライバを配置します。
+Kakipのイメージが書き込まれているSDカードにドライバとカーネルイメージを配置します。
+**使用している `kakip_os_image` のバージョンによって手順が異なります。**
+
 1. SDカードをPCにマウントする。
 
     /mntに手動でマウントする場合の手順です。  
     自動マウントされる環境の場合は、以降マウント先のパスを読み替えてください。
 
+    **【A】 kakip_os_image_v7.3 以前の場合**
+
     ```
     # sd<X>は環境によります。
     sudo mount /dev/sd<X>2 /mnt
+
+    cd $WORK
+    # ドライバの配置
+    sudo cp ./rtl8812au/88XXau.ko /mnt/lib/modules/5.10.145-cip17-yocto-standard/extra/
+    # カーネルイメージの配置
+    sudo cp ./kakip_linux/arch/arm64/boot/Image /mnt/boot/Image-5.10.145-cip17-yocto-standard
+
+    sudo umount /mnt
     ```
 
-2. ビルドしたドライバとカーネルイメージを配置する。
+    **【B】 kakip_os_image_v7.4 以降の場合**
+
     ```
+    # sd<X>は環境によります。
+
+    # ドライバの配置
+    sudo mount /dev/sd<X>2 /mnt
     cd $WORK
     sudo cp ./rtl8812au/88XXau.ko /mnt/lib/modules/5.10.145-cip17-yocto-standard/extra/
-    sudo cp ./kakip_linux/arch/arm64/boot/Image /mnt/boot/Image-5.10.145-cip17-yocto-standard
-    ```
+    sudo umount /mnt
 
-3. SDカードをPCからアンマウントする。
-    ```
+    # カーネルイメージの配置
+    sudo mount /dev/sd<X>1 /mnt
+    sudo cp ./kakip_linux/arch/arm64/boot/Image /mnt/boot/Image
     sudo umount /mnt
     ```
 
@@ -181,10 +198,22 @@ Kakipのイメージが書き込まれているSDカードにドライバを配�
 ### インストール手順
 
 1. ビルドしたドライバとカーネルイメージを配置する。
+    **使用している `kakip_os_image` のバージョンによって配置先が異なります。**
+
+    **【A】 kakip_os_image_v7.3 以前の場合**
     ```
     sudo cp $WORK/rtl8812au/88XXau.ko /lib/modules/5.10.145-cip17-yocto-standard/extra/
     sudo cp $WORK/kakip_linux/arch/arm64/boot/Image /boot/Image-5.10.145-cip17-yocto-standard
     ```
+
+    **【B】 kakip_os_image_v7.4 以降の場合**
+    ```
+    sudo cp $WORK/rtl8812au/88XXau.ko /lib/modules/5.10.145-cip17-yocto-standard/extra/
+
+    # Bootパーティション（mmcblk0p1）をマウント
+    sudo mount /dev/mmcblk0p1 /mnt
+    sudo cp $WORK/kakip_linux/arch/arm64/boot/Image /mnt/boot/Image
+    sudo umount /mnt
 
 2. kakipを再起動する。
     ```
