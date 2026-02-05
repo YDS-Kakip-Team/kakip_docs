@@ -24,11 +24,10 @@ The procedure applies to both **Cortex-R8** and **Cortex-M33** cores.
 
 ### 1.1 Hardware Revision Requirement
 
-For **R9A09G057H42 hardware revisions ES2 and earlier**, a **hardware rework is required** before SWD debugging can be performed.
--   **Applicable revisions**
-    -   ES2
-    -   ES1
-    -   Earlier revisions
+Note that a **hardware rework is required** before SWD debugging can be performed.
+-   **Applicable hardware revision**
+    -   Chip name: R9A09G057H4*
+    -   PCB revision: ES2 and MP1
 -   **Rework definition**
     -   **R126 removed → hardware reworked**
 
@@ -38,7 +37,7 @@ If the board has already been reworked (R126 removed), no further hardware modif
 
 ### 1.2 Hardware Rework Responsibility
 
-The required hardware rework applies **only to ES2 and earlier revisions**.
+The required hardware rework applies **only to ES2 and MP1**.
 Detailed rework procedures, verification steps, and revision confirmation **must be handled by the official hardware vendor**.
 For all hardware-related inquiries, please contact:
 -   **Yuridenki Official Technical Support**
@@ -47,7 +46,7 @@ For all hardware-related inquiries, please contact:
 
 > **Important Notice**
 >
-> SWD debugging on **ES2 and earlier hardware revisions** is supported **only after the required hardware rework has been completed** (**R126 removed**).
+> SWD debugging on **ES2 and MP1 revision** is supported **only after the required hardware rework has been completed** (**R126 removed**).
 >
 > Please contact **Yuridenki official technical support** (contact@yuridenki.co.jp) for hardware rework details and confirmation.
 
