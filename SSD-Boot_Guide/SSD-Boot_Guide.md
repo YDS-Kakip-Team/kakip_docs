@@ -5,7 +5,12 @@ Install the Ubuntu system onto an NVMe SSD for the Kakip 8GB (Renesas RZ/V2H).
 ## Prerequisites
 
 - Kakip 8GB ES4 and above board with OS image v7.4 and above from Kakip official website https://www.kakip.ai/
-- [Raspberry Pi SSD Kit](https://www.raspberrypi.com/documentation/accessories/ssd-kit.html#about)
+- [Raspberry Pi SSD Kit](https://www.raspberrypi.com/documentation/accessories/ssd-kit.html#about) for rootfs partition
+- An uSD card is still necessary for boot partition
+
+### Architecture
+
+<img src="images/ssd-boot_partition-layout.png" alt="ssd-boot_partition-layout" width="600">
 
 ## Installation
 
