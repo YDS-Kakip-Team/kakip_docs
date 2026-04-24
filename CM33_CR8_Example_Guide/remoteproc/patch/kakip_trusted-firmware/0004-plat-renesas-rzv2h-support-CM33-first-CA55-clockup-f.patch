@@ -1,0 +1,77 @@
+From 64baee735b70df955b66f615afc36267540eb339 Mon Sep 17 00:00:00 2001
+From: LiangCheng Wang <zaq14760@gmail.com>
+Date: Fri, 17 Apr 2026 17:55:10 +0800
+Subject: [PATCH 4/5] plat: renesas: rzv2h: support CM33-first CA55 clockup
+ flow
+
+Add an optional CA55 clockup flow for CM33 firmware loading.
+When enabled, BL2 skips loading the A-side images until CM33 has been started,
+then waits after releasing CM33 from reset.
+
+This allows CM33 firmware to run first and
+perform the CA55 clockup sequence before the normal A-side boot continues.
+---
+ plat/renesas/rz/soc/v2h/bl2_plat_setup.c | 20 ++++++++++++++++++++
+ plat/renesas/rz/soc/v2h/platform.mk      |  4 ++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/plat/renesas/rz/soc/v2h/bl2_plat_setup.c b/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
+index c09b2d2..979d207 100644
+--- a/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
++++ b/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
+@@ -57,6 +57,11 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
+ 			flush_dcache_range((uintptr_t)PARAMS_BASE, sizeof(bl2_to_bl31_params_mem_t));
+ 			bl2_enter_bl31(&bl_mem_params->ep_info);
+ 		}
++#if PLAT_M33_BOOT_SUPPORT && PLAT_CA55_CLOCKUP
++		else if (!sys_is_m33_core_booted()) {
++			bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++		}
++#endif
+ 	}
+ #if PLAT_M33_BOOT_SUPPORT
+ 	if (image_id == BL22_IMAGE_ID) {
+@@ -67,6 +72,18 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
+ 	}
+ #endif
+ 
++#if PLAT_M33_BOOT_SUPPORT && PLAT_CA55_CLOCKUP
++	if (image_id == BL32_IMAGE_ID || image_id == BL33_IMAGE_ID) {
++		if (!sys_is_m33_core_booted()) {
++			bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++		}
++
++		if (bl2_plat_get_boot_mode() == RZ_WARM_BOOT) {
++			bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++		}
++	}
++#endif
++
+ 	return 0;
+ }
+ 
+@@ -189,6 +206,9 @@ void bl2_el3_plat_prepare_exit(void)
+ 		bl22_mem_params = get_bl_mem_params_node(BL22_IMAGE_ID);
+ 		if (bl22_mem_params != NULL) {
+ 			sys_m33_core_boot_on(bl22_mem_params->ep_info.pc);
++#if PLAT_CA55_CLOCKUP
++			wfi();
++#endif
+ 		}
+ 	}
+ }
+diff --git a/plat/renesas/rz/soc/v2h/platform.mk b/plat/renesas/rz/soc/v2h/platform.mk
+index fdc0098..250687b 100644
+--- a/plat/renesas/rz/soc/v2h/platform.mk
++++ b/plat/renesas/rz/soc/v2h/platform.mk
+@@ -76,3 +76,7 @@ endif
+ ifeq (${ENABLE_CM33_FIRMWARE_LOAD},1)
+ TF_CFLAGS += -DPLAT_M33_BOOT_SUPPORT=1
+ endif
++
++ifeq (${ENABLE_CA55_CLOCKUP},1)
++TF_CFLAGS += -DPLAT_CA55_CLOCKUP=1
++endif
+-- 
+2.34.1
+

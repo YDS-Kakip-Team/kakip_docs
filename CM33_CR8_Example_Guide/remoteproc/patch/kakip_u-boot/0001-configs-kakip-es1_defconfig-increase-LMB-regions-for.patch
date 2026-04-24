@@ -1,0 +1,28 @@
+From c440478eb1dfda8221b3ac9e38d0ee2815fb9bbd Mon Sep 17 00:00:00 2001
+From: LiangCheng Wang <zaq14760@gmail.com>
+Date: Tue, 24 Mar 2026 15:32:29 +0800
+Subject: [PATCH] configs: kakip-es1_defconfig: increase LMB regions for
+ reserved memory
+
+Increase CONFIG_LMB_MAX_REGIONS to 16 so U-Boot has enough LMB entries
+for the Kakip reserved-memory layout.
+
+Remote processor support can add more reserved-memory entries to
+the DT passed to Linux. Keeping a larger LMB table avoids
+boot-time reservation failures when those regions are present.
+---
+ configs/kakip-es1_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configs/kakip-es1_defconfig b/configs/kakip-es1_defconfig
+index afe3f8ea..d125ef4d 100644
+--- a/configs/kakip-es1_defconfig
++++ b/configs/kakip-es1_defconfig
+@@ -93,3 +93,4 @@ CONFIG_CMD_SPI=y
+ CONFIG_SPI_FLASH_STMICRO=y
+ CONFIG_DM_SPI_FLASH=y
+ CONFIG_ENV_SECT_SIZE=0x20000
++CONFIG_LMB_MAX_REGIONS=16
+-- 
+2.34.1
+

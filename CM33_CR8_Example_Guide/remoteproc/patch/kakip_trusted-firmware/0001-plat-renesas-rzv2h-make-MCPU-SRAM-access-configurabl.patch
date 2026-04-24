@@ -1,0 +1,46 @@
+From 6e3682584510d6d4cb3d69ea5bef927bf21a170d Mon Sep 17 00:00:00 2001
+From: LiangCheng Wang <zaq14760@gmail.com>
+Date: Fri, 17 Apr 2026 18:04:12 +0800
+Subject: [PATCH 1/5] plat: renesas: rzv2h: make MCPU SRAM access configurable
+
+Add a build option to control the default MSRAM TZC permissions for MCPU access.
+Keep the region secure by default, and allow non-secure MCPU access
+only when ENABLE_SRAM_REGION_ACCESS_MCPU is enabled.
+---
+ plat/renesas/rz/soc/v2h/plat_security.c | 5 +++++
+ plat/renesas/rz/soc/v2h/platform.mk     | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/plat/renesas/rz/soc/v2h/plat_security.c b/plat/renesas/rz/soc/v2h/plat_security.c
+index 18bf5e9..70b3fcd 100644
+--- a/plat/renesas/rz/soc/v2h/plat_security.c
++++ b/plat/renesas/rz/soc/v2h/plat_security.c
+@@ -173,8 +173,13 @@ static void plat_tzc_msram_setup(void)
+ 			/* Default Region 0: Lock down */
+ 			.base = 0,	/* Not Used by Region 0*/
+ 			.end  = 0,	/* Not Used by Region 0*/
++#if ENABLE_SRAM_REGION_ACCESS_MCPU
+ 			.sec_attr = TZC_REGION_S_NONE,
+ 			.nsaid_permissions = PLAT_TZC_REGION_ACCESS_NS_UNPRIV
++#else /* #if ENABLE_SRAM_REGION_ACCESS_MCPU */
++			.sec_attr = TZC_REGION_S_RDWR,
++			.nsaid_permissions = PLAT_TZC_REGION_ACCESS_S_PRIV
++#endif /* #if ENABLE_SRAM_REGION_ACCESS_MCPU */
+ 		},
+ 		{}
+ 	};
+diff --git a/plat/renesas/rz/soc/v2h/platform.mk b/plat/renesas/rz/soc/v2h/platform.mk
+index 80e448b..3ab3c47 100644
+--- a/plat/renesas/rz/soc/v2h/platform.mk
++++ b/plat/renesas/rz/soc/v2h/platform.mk
+@@ -64,3 +64,7 @@ ifneq (${DEBUG}, 0)
+ TF_CFLAGS += -O0 -fstack-usage
+ ASFLAGS += -O0 -fstack-usage
+ endif
++
++ifeq (${ENABLE_SRAM_REGION_ACCESS_MCPU},1)
++TF_CFLAGS += -DENABLE_SRAM_REGION_ACCESS_MCPU=1
++endif
+-- 
+2.34.1
+

@@ -1,0 +1,384 @@
+From 1cb8f357753fd6d76fd130fd4af683467c8e45c6 Mon Sep 17 00:00:00 2001
+From: LiangCheng Wang <zaq14760@gmail.com>
+Date: Fri, 17 Apr 2026 17:52:10 +0800
+Subject: [PATCH 2/5] plat: renesas: rzv2h: add BL22 loading support for CM33
+
+Add the platform image description, memory range and
+storage policies needed to load the Cortex-M33 firmware as BL22.
+
+When CM33 firmware loading is enabled, BL2 can fetch the BL22 image from
+the selected boot device and map the BL22 SRAM region.
+Skip loading BL22 during warm boot.
+---
+ plat/renesas/rz/common/v2h_common.mk          | 14 +++
+ .../rz/soc/v2h/bl2_plat_mem_params_desc.c     | 94 +++++++++++++++++++
+ plat/renesas/rz/soc/v2h/bl2_plat_setup.c      | 15 +++
+ .../rz/soc/v2h/include/plat_tbbr_img_def.h    |  7 +-
+ .../renesas/rz/soc/v2h/include/platform_def.h |  8 ++
+ plat/renesas/rz/soc/v2h/include/rz_soc_def.h  | 11 +++
+ plat/renesas/rz/soc/v2h/plat_storage.c        | 40 +++++++-
+ plat/renesas/rz/soc/v2h/platform.mk           |  8 ++
+ 8 files changed, 194 insertions(+), 3 deletions(-)
+ create mode 100644 plat/renesas/rz/soc/v2h/bl2_plat_mem_params_desc.c
+
+diff --git a/plat/renesas/rz/common/v2h_common.mk b/plat/renesas/rz/common/v2h_common.mk
+index 4ce9c08..4c6a151 100644
+--- a/plat/renesas/rz/common/v2h_common.mk
++++ b/plat/renesas/rz/common/v2h_common.mk
+@@ -30,6 +30,9 @@ endif
+ 
+ $(eval $(call add_define,PLAT_SOC_RZV2H))
+ $(eval $(call add_define,PROTECTED_CHIPID))
++ifeq (${ENABLE_CM33_FIRMWARE_LOAD},1)
++$(eval $(call add_define,PLAT_TBBR_IMG_DEF))
++endif
+ $(eval $(call add_define,DEBUG_FPGA))
+ $(eval $(call add_define,PLAT_DDR_ECC))
+ $(eval $(call add_define,PLAT_SYSTEM_SUSPEND))
+@@ -98,6 +101,16 @@ SD_SOURCES				:=	plat/renesas/rz/common/drivers/sd/sd_init.c			\
+ 							plat/renesas/rz/common/drivers/sd/sd_dev_low.c		\
+ 							plat/renesas/rz/common/drivers/io/io_sddrv.c
+ 
++ifeq (${ENABLE_CM33_FIRMWARE_LOAD},1)
++BL2_SOURCES				+=	common/desc_image_load.c							\
++							drivers/io/io_storage.c								\
++							drivers/io/io_memmap.c								\
++							drivers/io/io_fip.c									\
++							plat/renesas/rz/common/plat_image_load.c			\
++							${XSPI_SOURCES}										\
++							${EMMC_SOURCES}										\
++							${SD_SOURCES}
++else
+ BL2_SOURCES				+=	common/desc_image_load.c							\
+ 							drivers/io/io_storage.c								\
+ 							drivers/io/io_memmap.c								\
+@@ -107,6 +120,7 @@ BL2_SOURCES				+=	common/desc_image_load.c							\
+ 							${XSPI_SOURCES}										\
+ 							${EMMC_SOURCES}										\
+ 							${SD_SOURCES}
++endif
+ 
+ # Include GICv3 driver files
+ GICV3_IMPL				:=	GIC600
+diff --git a/plat/renesas/rz/soc/v2h/bl2_plat_mem_params_desc.c b/plat/renesas/rz/soc/v2h/bl2_plat_mem_params_desc.c
+new file mode 100644
+index 0000000..2f52254
+--- /dev/null
++++ b/plat/renesas/rz/soc/v2h/bl2_plat_mem_params_desc.c
+@@ -0,0 +1,94 @@
++/*
++ * Copyright (c) 2025, Renesas Electronics Corporation. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <common/desc_image_load.h>
++#include <plat/common/platform.h>
++#include <rz_soc_def.h>
++
++#if (RZG2L_BL33_EXECUTION_EL == 0)
++#define BL33_MODE MODE_EL1
++#else
++#define BL33_MODE MODE_EL2
++#endif
++
++static bl_mem_params_node_t bl2_mem_params_descs[] = {
++	{
++		.image_id = BL31_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++			entry_point_info_t, SECURE | EXECUTABLE | EP_FIRST_EXE),
++		.ep_info.spsr = SPSR_64(MODE_EL3,
++			MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS),
++		.ep_info.pc = BL31_BASE,
++		.ep_info.args.arg0 = (uintptr_t)PARAMS_BASE,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++			image_info_t, IMAGE_ATTRIB_PLAT_SETUP),
++		.image_info.image_max_size = BL31_LIMIT - BL31_BASE,
++		.image_info.image_base = BL31_BASE,
++
++#ifdef BL32_BASE
++		.next_handoff_image_id = BL32_IMAGE_ID,
++#else
++		.next_handoff_image_id = BL33_IMAGE_ID,
++#endif /* BL32_BASE */
++	},
++#ifdef BL32_BASE
++	{
++		.image_id = BL32_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++			entry_point_info_t, SECURE | EXECUTABLE),
++		.ep_info.pc = BL32_BASE,
++		.ep_info.spsr = 0,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++			image_info_t, 0),
++		.image_info.image_max_size = BL32_LIMIT - BL32_BASE,
++		.image_info.image_base = BL32_BASE,
++
++		.next_handoff_image_id = BL33_IMAGE_ID,
++	},
++#endif /* BL32_BASE */
++	{
++		.image_id = BL33_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++			entry_point_info_t, NON_SECURE | EXECUTABLE),
++		.ep_info.spsr = SPSR_64(BL33_MODE, MODE_SP_ELX,
++			DISABLE_ALL_EXCEPTIONS),
++		.ep_info.pc = BL33_BASE,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++			image_info_t, 0),
++		.image_info.image_max_size =
++				(uint32_t)(BL33_LIMIT - BL33_BASE),
++		.image_info.image_base = BL33_BASE,
++
++		.next_handoff_image_id = INVALID_IMAGE_ID,
++	},
++#if PLAT_M33_BOOT_SUPPORT
++	{
++		.image_id = BL22_IMAGE_ID,
++
++		SET_STATIC_PARAM_HEAD(ep_info, PARAM_EP, VERSION_2,
++			entry_point_info_t, SECURE | EXECUTABLE),
++		.ep_info.spsr = SPSR_64(MODE_EL3, MODE_SP_ELX,
++			DISABLE_ALL_EXCEPTIONS),
++		.ep_info.pc = BL22_BASE,
++
++		SET_STATIC_PARAM_HEAD(image_info, PARAM_EP, VERSION_2,
++			image_info_t, 0),
++		.image_info.image_max_size =
++				(uint32_t)(BL22_LIMIT - BL22_BASE),
++		.image_info.image_base = BL22_BASE,
++
++		.next_handoff_image_id = INVALID_IMAGE_ID,
++	}
++#endif /* PLAT_M33_BOOT_SUPPORT */
++};
++
++REGISTER_BL_IMAGE_DESCS(bl2_mem_params_descs)
+diff --git a/plat/renesas/rz/soc/v2h/bl2_plat_setup.c b/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
+index 84d99c7..8f2b11d 100644
+--- a/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
++++ b/plat/renesas/rz/soc/v2h/bl2_plat_setup.c
+@@ -39,6 +39,9 @@ static uint32_t bl2_plat_get_boot_mode(void)
+ 
+ int bl2_plat_handle_pre_image_load(unsigned int image_id)
+ {
++#if PLAT_M33_BOOT_SUPPORT
++	bl_mem_params_node_t *bl_mem_params = get_bl_mem_params_node(image_id);
++#endif
+ 	if (image_id == BL31_IMAGE_ID) {
+ 		bl2_to_bl31_params_mem_t *params = (bl2_to_bl31_params_mem_t *)PARAMS_BASE;
+ 
+@@ -46,13 +49,21 @@ int bl2_plat_handle_pre_image_load(unsigned int image_id)
+ 
+ 		/* If a warm start is in progress then skip rest of initialisation and jump directly to BL31 */
+ 		if (params->boot_kind == RZ_WARM_BOOT) {
++#if !(PLAT_M33_BOOT_SUPPORT)
+ 			bl_mem_params_node_t *bl_mem_params = get_bl_mem_params_node(image_id);
+ 
++#endif
+ 			bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
+ 			flush_dcache_range((uintptr_t)PARAMS_BASE, sizeof(bl2_to_bl31_params_mem_t));
+ 			bl2_enter_bl31(&bl_mem_params->ep_info);
+ 		}
+ 	}
++#if PLAT_M33_BOOT_SUPPORT
++	if (image_id == BL22_IMAGE_ID &&
++	    bl2_plat_get_boot_mode() == RZ_WARM_BOOT) {
++		bl_mem_params->image_info.h.attr |= IMAGE_ATTRIB_SKIP_LOADING;
++	}
++#endif
+ 
+ 	return 0;
+ }
+@@ -128,6 +139,10 @@ void bl2_el3_early_platform_setup(u_register_t arg1, u_register_t arg2,
+ void bl2_el3_plat_arch_setup(void)
+ {
+ 	const mmap_region_t bl2_regions[] = {
++#if PLAT_M33_BOOT_SUPPORT
++		MAP_REGION_FLAT(BL22_BASE, BL22_LIMIT - BL22_BASE,
++				MT_CODE | MT_RW | MT_SECURE),
++#endif
+ 		MAP_REGION_FLAT(BL2_BASE, BL2_END - BL2_BASE,
+ 				MT_MEMORY | MT_RW | MT_SECURE),
+ 		MAP_REGION_FLAT(BL_CODE_BASE, BL_CODE_END - BL_CODE_BASE,
+diff --git a/plat/renesas/rz/soc/v2h/include/plat_tbbr_img_def.h b/plat/renesas/rz/soc/v2h/include/plat_tbbr_img_def.h
+index 21532c8..6668faf 100644
+--- a/plat/renesas/rz/soc/v2h/include/plat_tbbr_img_def.h
++++ b/plat/renesas/rz/soc/v2h/include/plat_tbbr_img_def.h
+@@ -10,10 +10,13 @@
+ #define V2H_DDR_CONFIG_ID	(MAX_IMG_IDS_WITH_SPMDS + 0)
+ 
+ #ifdef MAX_NUMBER_IDS
+-
+ #undef MAX_NUMBER_IDS
++#endif /* MAX_NUMBER_IDS */
++
+ #define MAX_NUMBER_IDS		(MAX_IMG_IDS_WITH_SPMDS + 4)
+ 
+-#endif /* MAX_NUMBER_IDS */
++#if PLAT_M33_BOOT_SUPPORT
++#define BL22_IMAGE_ID		(MAX_IMG_IDS_WITH_SPMDS + 1)
++#endif
+ 
+ #endif /* PLAT_TBBR_IMG_DEF_H */
+diff --git a/plat/renesas/rz/soc/v2h/include/platform_def.h b/plat/renesas/rz/soc/v2h/include/platform_def.h
+index c6f8fa6..80ff590 100644
+--- a/plat/renesas/rz/soc/v2h/include/platform_def.h
++++ b/plat/renesas/rz/soc/v2h/include/platform_def.h
+@@ -73,6 +73,14 @@
+ #define BL33_BASE				UL(0x50000000)
+ #define BL33_LIMIT				(BL33_BASE + 0x08000000)
+ 
++#if PLAT_M33_BOOT_SUPPORT
++/*******************************************************************************
++ * BL22 (Cortex-M33)
++ ******************************************************************************/
++#define BL22_BASE				U(0x08000000)
++#define BL22_LIMIT				U(BL22_BASE + 0x00060000)
++#endif /* PLAT_M33_BOOT_SUPPORT */
++
+ /*******************************************************************************
+  * Platform specific page table and MMU setup constants
+  ******************************************************************************/
+diff --git a/plat/renesas/rz/soc/v2h/include/rz_soc_def.h b/plat/renesas/rz/soc/v2h/include/rz_soc_def.h
+index b59258d..0d16c9a 100644
+--- a/plat/renesas/rz/soc/v2h/include/rz_soc_def.h
++++ b/plat/renesas/rz/soc/v2h/include/rz_soc_def.h
+@@ -8,6 +8,9 @@
+ #define __RZ_SOC_DEF_H__
+ 
+ #include <lib/utils_def.h>
++#if PLAT_M33_BOOT_SUPPORT
++#include <common/tbbr/tbbr_img_def.h>
++#endif
+ 
+ #define RZV2H_BOOT_ROM_BASE			UL(0x00000000)
+ #define RZV2H_AUTH_API_BASE			UL(0x00014300)
+@@ -98,6 +101,14 @@
+ #define RZV2H_EMMC_FIP_BASE			RZV2H_BL2_END_OFFSET
+ #define RZV2H_EMMC_FIP_SIZE			RZV2H_FIP_SIZE_MAX
+ 
++#if PLAT_M33_BOOT_SUPPORT
++#define RZV2H_M33_FW_OFFSET			UL(0x00200200)
++#define RZV2H_SPIROM_M33_FW_BASE		(RZV2H_XSPI_MEMORY_MAP_BASE + RZV2H_M33_FW_OFFSET)
++#define RZV2H_EMMC_M33_FW_BASE			(RZV2H_M33_FW_OFFSET)
++#define RZV2H_SD_M33_FW_BASE			(RZV2H_M33_FW_OFFSET)
++#define RZV2H_M33_FW_SIZE			UL(0x00030000)
++#endif
++
+ #define RZV2H_SD_FIP_BASE			RZV2H_BL2_END_OFFSET
+ #define RZV2H_SD_FIP_SIZE			RZV2H_FIP_SIZE_MAX
+ 
+diff --git a/plat/renesas/rz/soc/v2h/plat_storage.c b/plat/renesas/rz/soc/v2h/plat_storage.c
+index db932b9..86490fa 100644
+--- a/plat/renesas/rz/soc/v2h/plat_storage.c
++++ b/plat/renesas/rz/soc/v2h/plat_storage.c
+@@ -19,6 +19,9 @@
+ #include <plat_tbbr_img_def.h>
+ #include <io_xspidrv.h>
+ #endif /* PLAT_SYSTEM_SUSPEND */
++#if PLAT_M33_BOOT_SUPPORT
++#include <plat_tbbr_img_def.h>
++#endif
+ 
+ #include <rz_soc_def.h>
+ #include <sys.h>
+@@ -99,6 +102,20 @@ static const io_uuid_spec_t nt_fw_content_cert_file_spec = {
+ };
+ #endif
+ 
++#if PLAT_M33_BOOT_SUPPORT
++static const io_block_spec_t spirom_bl22_image_spec = {
++	.offset = RZV2H_SPIROM_M33_FW_BASE,
++	.length = RZV2H_M33_FW_SIZE,
++};
++
++#ifndef BOOT_MODE_eMMC_NOT_SUPPORTED
++static const io_block_spec_t emmc_bl22_image_spec = {
++	.offset = RZV2H_EMMC_M33_FW_BASE,
++	.length = RZV2H_M33_FW_SIZE,
++};
++#endif /* BOOT_MODE_eMMC_NOT_SUPPORTED */
++#endif /* PLAT_M33_BOOT_SUPPORT */
++
+ #if PLAT_SYSTEM_SUSPEND
+ static const io_block_spec_t spirom_ddr_cfg_spec = {
+ 	.offset = RZ_SOC_SPIROM_DDR_CFG_BASE,
+@@ -150,6 +167,22 @@ static const struct plat_io_policy spirom_ddr_config_policy = {
+ };
+ #endif /* PLAT_SYSTEM_SUSPEND */
+ 
++#if PLAT_M33_BOOT_SUPPORT
++#ifndef BOOT_MODE_eMMC_NOT_SUPPORTED
++static const struct plat_io_policy emmc_bl22_image_policy = {
++	&emmcdrv_dev_handle,
++	(uintptr_t)&emmc_bl22_image_spec,
++	&open_emmcdrv
++};
++#endif /* BOOT_MODE_eMMC_NOT_SUPPORTED */
++
++static const struct plat_io_policy spirom_bl22_image_policy = {
++	&memdrv_dev_handle,
++	(uintptr_t)&spirom_bl22_image_spec,
++	&open_memmap
++};
++#endif /* PLAT_M33_BOOT_SUPPORT */
++
+ static struct plat_io_policy policies[MAX_NUMBER_IDS] = {
+ 	/* FIP_IMAGE_ID structure is added to this array on a bootmode basis */
+ 
+@@ -260,11 +293,17 @@ static void update_dev_policies(uint16_t boot_mode)
+ #if PLAT_SYSTEM_SUSPEND
+ 		policies[V2H_DDR_CONFIG_ID] = spirom_ddr_config_policy;
+ #endif /* PLAT_SYSTEM_SUSPEND */
++#if PLAT_M33_BOOT_SUPPORT
++		policies[BL22_IMAGE_ID] = spirom_bl22_image_policy;
++#endif
+ 		break;
+ #ifndef BOOT_MODE_eMMC_NOT_SUPPORTED
+ 	case SYS_BOOT_MODE_EMMC_1_8:
+ 	case SYS_BOOT_MODE_EMMC_3_3:
+ 		policies[FIP_IMAGE_ID] = emmc_fip_policy;
++#if PLAT_M33_BOOT_SUPPORT
++		policies[BL22_IMAGE_ID] = emmc_bl22_image_policy;
++#endif
+ 		break;
+ #endif /* BOOT_MODE_eMMC_NOT_SUPPORTED */
+ 	case SYS_BOOT_MODE_ESD:
+@@ -354,4 +393,3 @@ int plat_get_image_source(unsigned int image_id, uintptr_t *dev_handle,
+ 
+ 	return 0;
+ }
+-
+diff --git a/plat/renesas/rz/soc/v2h/platform.mk b/plat/renesas/rz/soc/v2h/platform.mk
+index 3ab3c47..fdc0098 100644
+--- a/plat/renesas/rz/soc/v2h/platform.mk
++++ b/plat/renesas/rz/soc/v2h/platform.mk
+@@ -27,6 +27,10 @@ BL2_SOURCES				+=	plat/renesas/rz/soc/v2h/bl2_plat_setup.c		\
+ 							plat/renesas/rz/soc/v2h/drivers/sys.c			\
+ 							plat/renesas/rz/soc/v2h/drivers/pfc.c
+ 
++ifeq (${ENABLE_CM33_FIRMWARE_LOAD},1)
++BL2_SOURCES				+=	plat/renesas/rz/soc/v2h/bl2_plat_mem_params_desc.c
++endif
++
+ BL31_SOURCES			+=	plat/renesas/rz/soc/v2h/bl31_plat_setup.c		\
+ 							plat/renesas/rz/soc/v2h/plat_pm.c				\
+ 							plat/renesas/rz/soc/v2h/rz_plat_sip_handler.c
+@@ -68,3 +72,7 @@ endif
+ ifeq (${ENABLE_SRAM_REGION_ACCESS_MCPU},1)
+ TF_CFLAGS += -DENABLE_SRAM_REGION_ACCESS_MCPU=1
+ endif
++
++ifeq (${ENABLE_CM33_FIRMWARE_LOAD},1)
++TF_CFLAGS += -DPLAT_M33_BOOT_SUPPORT=1
++endif
+-- 
+2.34.1
+

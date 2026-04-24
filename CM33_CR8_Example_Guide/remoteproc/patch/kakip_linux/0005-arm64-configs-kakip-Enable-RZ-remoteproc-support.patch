@@ -1,0 +1,28 @@
+From 2c6e96b6e209d005d0ad76cd6f0c84971dad1a75 Mon Sep 17 00:00:00 2001
+From: LiangCheng Wang <zaq14760@gmail.com>
+Date: Wed, 15 Apr 2026 17:49:11 +0800
+Subject: [PATCH 5/6] arm64: configs: kakip: Enable RZ remoteproc support
+
+Enable the remoteproc core, the RZ remoteproc driver.
+---
+ arch/arm64/configs/kakip.config | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/kakip.config b/arch/arm64/configs/kakip.config
+index 76c43e43b..43f23f3b4 100644
+--- a/arch/arm64/configs/kakip.config
++++ b/arch/arm64/configs/kakip.config
+@@ -5060,7 +5060,9 @@ CONFIG_IPMMU_VMSA_CTX_NUM=8
+ #
+ # Remoteproc drivers
+ #
+-# CONFIG_REMOTEPROC is not set
++CONFIG_REMOTEPROC=y
++CONFIG_REMOTEPROC_CDEV=y
++CONFIG_RZ_REMOTEPROC=y
+ # end of Remoteproc drivers
+ 
+ #
+-- 
+2.34.1
+
