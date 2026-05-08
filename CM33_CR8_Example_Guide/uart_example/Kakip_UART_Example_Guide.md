@@ -7,8 +7,11 @@ A UART communication example using SCI5 on the Kakip 40-pin GPIO header. The fir
 - Kakip board with OS image from Kakip official website <https://www.kakip.ai/>
 - USB-UART adapter (e.g., Pmod USBUART, FTDI cable)
 - Serial terminal software (TeraTerm, minicom, etc.)
-- e2 studio with RZ/V2H FSP support
+- e2 studio with RZ/V2H FSP v3.0.0
 - GCC ARM Embedded toolchain (13.3.1.arm-13-24)
+
+> **Note:** This project is built with FSP v3.0.0. Using a different FSP version may cause build errors.
+> Prebuilt firmware binaries are available in the [firmware/](firmware/) directory for quick testing without building.
 
 ## Hardware Connection
 
